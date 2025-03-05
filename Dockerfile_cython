@@ -1,0 +1,46 @@
+FROM python:3.10 AS base
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV DEBIAN_FRONTEND=noninteractive
+
+# install ntp, opencv
+RUN ln -fs /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && apt-get update \
+  && apt-get install -y --no-install-recommends default-libmysqlclient-dev default-mysql-client \
+    htop net-tools ntp telnet vim && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Create a non-privileged user that the app will run under.
+ARG UID=10001
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/home/bigdata/" \
+    --uid "${UID}" \
+    bigdata
+
+# install dependencies
+FROM base AS dependencies
+RUN pip install --upgrade pip setuptools
+RUN --mount=type=bind,source=requirements.txt,target=requirements.txt pip install -r requirements.txt
+
+# build
+FROM dependencies AS build
+RUN python -m pip install Cython==3.0.11
+
+WORKDIR /home/bigdata/
+COPY src ./src
+COPY cython_build.py .
+
+# folder /home/bigdata: cython_build.py src
+RUN python cython_build.py build_ext
+RUN python cython_build.py bdist_wheel
+RUN unzip dist/*.whl -d dist/app && rm -rf dist/app/app-1.0.dist-info && \
+    python cython_build.py post-setup
+COPY src/start_gunicorn.sh dist/app
+
+FROM dependencies
+USER bigdata
+WORKDIR /home/bigdata/app
+COPY --from=build /home/bigdata/dist/app .
+
+EXPOSE 8080
+CMD ["sh", "-c", "PYTHONIOENCODING='UTF-8' ./start_gunicorn.sh"]

@@ -1,0 +1,16 @@
+version: '3.6'
+name: 'iva-dev-backend'
+
+services:
+    web-service:
+        image: "local/iva-web-service:${TAG:-latest}"
+        container_name: "iva-dev-web-service"
+        command: "./start_gunicorn.sh"
+        restart: always
+        env_file:
+            - ./env/common.env
+        volumes:
+            - /etc/timezone:/etc/timezone:ro
+            - /etc/localtime:/etc/localtime:ro
+        ports:
+            - "10026:8080"

@@ -1,0 +1,268 @@
+version: '3.6'
+name: iva-dev-system
+
+x-logging:
+  &default-logging
+    driver: "json-file"
+    options:
+        max-size: "1g"
+
+services:
+  zookeeper1:
+    image: confluentinc/cp-zookeeper:7.2.2
+    container_name: iva-dev-zookeeper1
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    ports:
+      - "3196:2181"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /iva_platform/iva-dev/zookeeper/data:/var/lib/zookeeper/data
+      - /iva_platform/iva-dev/zookeeper/log:/var/lib/zookeeper/log
+    logging: *default-logging
+    networks:
+      - iva-net
+
+  kafka1:
+    image: confluentinc/cp-kafka:7.2.2
+    container_name: iva-dev-kafka1
+    restart: always
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper1:2181"
+      KAFKA_LISTENERS: DOCKER://0.0.0.0:9092,INTERNAL://0.0.0.0:29092,TUNNEL://0.0.0.0:29093
+      KAFKA_ADVERTISED_LISTENERS: DOCKER://kafka1:9092,INTERNAL://10.124.66.243:10108,TUNNEL://tunnel-dev:10106
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: DOCKER:PLAINTEXT,INTERNAL:PLAINTEXT,TUNNEL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+
+      KAFKA_BROKER_ID: 1
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_MESSAGE_MAX_BYTES: 10000000
+      KAFKA_LOG_RETENTION_HOURS: 48
+      KAFKA_JMX_OPTS: "-javaagent:/opt/kafka/libs/jolokia-agent.jar=port=8778,host=0.0.0.0 -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=0.0.0.0 -Dcom.sun.management.jmxremote.rmi.port=9999"
+    ports:
+      - "10107:29092"
+      - "10108:29092"
+      - "10106:29093"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /iva_platform/iva-dev/kafka/data:/var/lib/kafka/data
+      - ./kafka/jolokia-agent.jar:/opt/kafka/libs/jolokia-agent.jar
+    logging: *default-logging
+    networks:
+      - iva-net
+
+  control-center:
+    image: confluentinc/cp-enterprise-control-center:7.3.2
+    container_name: iva-dev-control-center
+    restart: always
+    # depends_on:
+    # - kafka-1
+    ports:
+      - "10109:9021"
+    environment:
+      CONTROL_CENTER_BOOTSTRAP_SERVERS: 'kafka1:9092'
+      CONTROL_CENTER_REPLICATION_FACTOR: 1
+      CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS: 1
+      CONTROL_CENTER_MONITORING_INTERCEPTOR_TOPIC_PARTITIONS: 1
+      CONFLUENT_METRICS_TOPIC_REPLICATION: 1
+      PORT: 9021
+    logging: *default-logging
+    networks:
+      - iva-net
+
+  minio:
+    image: quay.io/minio/minio
+    container_name: iva-dev-minio
+    restart: always
+    environment:
+      MINIO_ROOT_USER: bigdata
+      MINIO_ROOT_PASSWORD: 123456a@
+      MINIO_PROMETHEUS_URL: http://prometheus:9090
+      MINIO_PROMETHEUS_AUTH_TYPE: public
+      MINIO_PROMETHEUS_JOB_ID: minio-job
+    ports:
+      - "10015:9000"
+      - "10016:10016"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /iva_platform/iva-dev/minio/data:/data
+    logging: *default-logging
+    networks:
+      - iva-net
+    command: 'server /data --console-address ":10016"'
+
+#  minio-cold:
+#    image: quay.io/minio/minio
+#    container_name: iva-dev-minio-cold
+#    restart: always
+#    environment:
+#      MINIO_ROOT_USER: bigdata
+#      MINIO_ROOT_PASSWORD: 123456a@
+#      MINIO_PROMETHEUS_URL: http://prometheus:9090
+#      MINIO_PROMETHEUS_AUTH_TYPE: public
+#      MINIO_PROMETHEUS_JOB_ID: minio-cold-job
+#    ports:
+#      - "10017:9000"
+#      - "10018:10018"
+#    volumes:
+#      - /etc/timezone:/etc/timezone:ro
+#      - /etc/localtime:/etc/localtime:ro
+#      - /iva_platform/iva-dev/minio-cold/data:/data
+#    logging: *default-logging
+#    networks:
+#      - iva-net
+#    command: 'server /data --console-address ":10018"'
+
+  prometheus:
+    image: prom/prometheus:v2.43.0
+    container_name: iva-dev-prometheus
+    volumes:
+      - './prometheus.yaml:/etc/prometheus/prometheus.yaml'
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yaml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9091:9090"
+    restart: always
+    logging: *default-logging
+    networks:
+      - iva-net
+
+  mysql:
+    image: mysql/mysql-server:8.0
+    container_name: iva-dev-mysql
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456a@
+      MYSQL_USER: bigdata
+      MYSQL_PASSWORD: 123456a@
+    ports:
+      - "4321:3306"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /iva_platform/iva-dev/mysql:/var/lib/mysql
+    logging: *default-logging
+    networks:
+      - iva-net
+
+  redis:
+    image: redis:7.0.7-alpine
+    container_name: iva-dev-redis
+    restart: always
+    ports:
+      - "7394:6379"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /iva_platform/iva-dev/redis/data:/data
+    logging: *default-logging
+    networks:
+      - iva-net
+    command: "/bin/sh -c 'yes | redis-check-aof --fix /data/appendonlydir/*.aof ; redis-server --appendonly yes --requirepass 123456a@'"
+
+  mongo:
+    image: mongo:6.0.5
+    container_name: iva-dev-mongodb
+    command: --wiredTigerCacheSizeGB 20
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: bigdata
+      MONGO_INITDB_ROOT_PASSWORD: 123456a@
+    ports:
+      - "27017:27017"
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+      - /iva_platform/iva-dev/mongo:/data/db
+    logging: *default-logging
+    networks:
+      - iva-net
+
+#  milvus-etcd:
+#    container_name: iva-dev-milvus-etcd
+#    image: quay.io/coreos/etcd:v3.5.5
+#    restart: always
+#    environment:
+#      - ETCD_AUTO_COMPACTION_MODE=revision
+#      - ETCD_AUTO_COMPACTION_RETENTION=1000
+#      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+#      - ETCD_SNAPSHOT_COUNT=50000
+#    volumes:
+#      - /iva_platform/iva-dev/milvus/volumes/etcd:/etcd
+#    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+#    logging: *default-logging
+#    networks:
+#      - iva-net
+#
+#  milvus-minio:
+#    container_name: iva-dev-milvus-minio
+#    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+#    restart: always
+#    environment:
+#      MINIO_ACCESS_KEY: minioadmin
+#      MINIO_SECRET_KEY: minioadmin
+#    ports:
+#      - "9500:9000"
+#      - "9501:9501"
+#    volumes:
+#      - /iva_platform/iva-dev/milvus/minio:/minio_data
+#    command: 'minio server /minio_data --console-address ":9501"'
+#    healthcheck:
+#      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+#      interval: 30s
+#      timeout: 20s
+#      retries: 3
+#    logging: *default-logging
+#    networks:
+#      - iva-net
+#
+#  milvus-standalone:
+#    container_name: iva-dev-milvus-standalone
+#    restart: always
+#    image: milvusdb/milvus:v2.2.6
+#    command: [ "milvus", "run", "standalone" ]
+#    environment:
+#      ETCD_ENDPOINTS: milvus-etcd:2379
+#      MINIO_ADDRESS: milvus-minio:9000
+#    volumes:
+#      - /iva_platform/iva-dev/milvus/milvus:/var/lib/milvus
+#      - ./milvus.yaml:/milvus/configs/milvus.yaml
+#    ports:
+#      - "19530:19530"
+#      - "9092:9091"
+#    depends_on:
+#      - "milvus-etcd"
+#      - "milvus-minio"
+#    logging: *default-logging
+#    networks:
+#      - iva-net
+#
+#  milvus-gui:
+#    container_name: iva-dev-milvus-gui
+#    restart: always
+#    image: zilliz/attu:v2.2.3
+#    environment:
+#      - MILVUS_URL=http://milvus-standalone:19530
+#    ports:
+#      - "8454:3000"
+#    depends_on:
+#      - "milvus-standalone"
+#    logging: *default-logging
+#    networks:
+#      - iva-net
+
+networks:
+    iva-net:
+        name: iva-dev-net
+        external: false

@@ -1,0 +1,35 @@
+2024-07-02
+Standardize field license_plate_text in event, rule_event
+
+Version 2023-10-12
+Update docker file
+
+
+Version 2023-10-11
+- Alert in MongoDB
+- Change in table Rule
+    + type -> event_type
+    + type: Alert, Counting,...
+    + category_id: sub-type
+
+
+Version 2023-08-30
+- Remove idx_trigger in table alert
+
+
+Version 2023-08-23
+- Add thêm, đổi tên một số attribute config
+python manage.py sync_attribute
+
+
+
+Version 2023-05-29 VS PMH PROD
+1. Rule
+Change config name: vehicle_plates => plate_recognition
+Need run `python manage.py migrate_rule` for updating
+
+2. Event
+LicensePlateEvent và VehiclePlateEvent
++ Loại bỏ matched_plate_id, dùng matched_plate_text
++ Thêm license_plate_type_id, license_plate_type_score
+Cần migrate collection event và các bảng thống kê

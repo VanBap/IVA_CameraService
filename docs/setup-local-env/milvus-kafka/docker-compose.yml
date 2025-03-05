@@ -1,0 +1,161 @@
+version: '3.6'
+name: iva-dev-milvus
+
+x-logging:
+  &default-logging
+    driver: "json-file"
+    options:
+        max-size: "1g"
+
+services:
+  milvus-etcd:
+    container_name: iva-dev-milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.5
+    restart: always
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - /iva_platform/iva-dev/milvus/volumes/etcd:/etcd
+    logging: *default-logging
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+
+  milvus-minio:
+    container_name: iva-dev-milvus-minio
+    image: minio/minio:RELEASE.2024-03-15T01-07-19Z
+    restart: always
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    ports:
+      - "10019:9000"
+      - "10020:10020"
+    volumes:
+      - /iva_platform/iva-dev/milvus/volumes/minio:/minio_data
+    logging: *default-logging
+    command: 'minio server /minio_data --console-address ":10020"'
+
+  milvus-rootcoord:
+    container_name: iva-dev-milvus-rootcoord
+    image: milvusdb/milvus:v2.3.12
+    restart: always
+    logging: *default-logging
+    command: [ "milvus", "run", "rootcoord" ]
+    volumes:
+      - ./milvus.yaml:/milvus/configs/milvus.yaml
+    depends_on:
+      - "milvus-etcd"
+      - "milvus-minio"
+
+  milvus-proxy:
+    container_name: iva-dev-milvus-proxy
+    image: milvusdb/milvus:v2.3.12
+    restart: always
+    logging: *default-logging
+    command: [ "milvus", "run", "proxy" ]
+    volumes:
+      - ./milvus.yaml:/milvus/configs/milvus.yaml
+      - /iva_platform/iva-dev/milvus/milvus_accesslog:/tmp/milvus_accesslog
+    ports:
+      - "19530:19530"
+
+  milvus-gui:
+    container_name: iva-dev-milvus-gui
+    restart: always
+    image: zilliz/attu:v2.2.3
+    environment:
+      - MILVUS_URL=http://milvus-proxy:19530
+    logging: *default-logging
+    ports:
+      - "8454:3000"
+    depends_on:
+      - "milvus-proxy"
+
+  milvus-querycoord:
+    container_name: iva-dev-milvus-querycoord
+    image: milvusdb/milvus:v2.3.12
+    restart: always
+    logging: *default-logging
+    command: [ "milvus", "run", "querycoord" ]
+    volumes:
+      - ./milvus.yaml:/milvus/configs/milvus.yaml
+    depends_on:
+      - "milvus-etcd"
+      - "milvus-minio"
+
+  milvus-querynode:
+    container_name: iva-dev-milvus-querynode
+    image: milvusdb/milvus:v2.3.12
+    restart: always
+    logging: *default-logging
+    command: [ "milvus", "run", "querynode" ]
+    volumes:
+      - ./milvus.yaml:/milvus/configs/milvus.yaml
+    depends_on:
+      - "milvus-querycoord"
+
+  milvus-indexcoord:
+    container_name: iva-dev-milvus-indexcoord
+    image: milvusdb/milvus:v2.3.12
+    restart: always
+    logging: *default-logging
+    command: [ "milvus", "run", "indexcoord" ]
+    volumes:
+      - ./milvus.yaml:/milvus/configs/milvus.yaml
+    depends_on:
+      - "milvus-etcd"
+      - "milvus-minio"
+
+  milvus-indexnode:
+    container_name: iva-dev-milvus-indexnode
+    image: milvusdb/milvus:v2.3.12
+    restart: always
+    logging: *default-logging
+    command: [ "milvus", "run", "indexnode" ]
+    volumes:
+      - ./milvus.yaml:/milvus/configs/milvus.yaml
+    depends_on:
+      - "milvus-indexcoord"
+
+  milvus-datacoord:
+    container_name: iva-dev-milvus-datacoord
+    image: milvusdb/milvus:v2.3.12
+    restart: always
+    logging: *default-logging
+    command: [ "milvus", "run", "datacoord" ]
+    volumes:
+      - ./milvus.yaml:/milvus/configs/milvus.yaml
+    depends_on:
+      - "milvus-etcd"
+      - "milvus-minio"
+
+  milvus-datanode:
+    container_name: iva-dev-milvus-datanode
+    image: milvusdb/milvus:v2.3.12
+    restart: always
+    logging: *default-logging
+    command: [ "milvus", "run", "datanode" ]
+    volumes:
+      - ./milvus.yaml:/milvus/configs/milvus.yaml
+    depends_on:
+      - "milvus-datacoord"
+
+  jaeger:
+    container_name: iva-dev-jaeger
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "5778:5778"
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+      - "14250:14250"
+      - "14268:14268"
+      - "14269:14269"
+      - "9411:9411"
+
+networks:
+  default:
+    name: iva-dev-net
+    external: true

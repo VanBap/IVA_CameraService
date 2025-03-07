@@ -4,7 +4,8 @@ from .views import (
     camera_group_view,
     camera_alert_view,
     rule_view,
-    ai_model_view
+    vlm_model_view,
+    prompt_view
 )
 
 app_name = ('khanhvan')
@@ -43,8 +44,15 @@ rule_urls = [
 
 ]
 # ai model
-api_model_urls =[
-    path('', ai_model_view.AIListView.as_view())
+vlm_model_urls =[
+    path('', vlm_model_view.VLMListView.as_view()),
+    path('<int:pk>', vlm_model_view.VLMDetailView.as_view()),
+]
+
+# prompt
+prompt_urls = [
+    path('', prompt_view.PromptListView.as_view()),
+    path('<int:pk>', prompt_view.PromptDetailView.as_view()),
 ]
 
 
@@ -54,5 +62,7 @@ urlpatterns = [
     path('vannhkcameraalerts/', include(camera_alert_urls)),
     path('vannhkcamerarules/', include(rule_urls)),
 
-    path('vannhkapimodels/', include(api_model_urls))
+    path('vannhkvlmmodels/', include(vlm_model_urls)),
+
+    path('vannhkprompts/', include(prompt_urls))
 ]

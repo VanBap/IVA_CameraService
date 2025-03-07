@@ -3,15 +3,15 @@ import logging
 from rest_framework import serializers
 
 # === Vannhk ===
-from ..models.ai_model import AImodel
+from ..models.prompt import Prompt
 
 
 
 logger = logging.getLogger('app')
 
-class AImodelSerializer(serializers.ModelSerializer):
+class PromptSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = AImodel
+        model = Prompt
         fields = '__all__'
 

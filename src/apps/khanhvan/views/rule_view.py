@@ -89,7 +89,7 @@ class RuleListView (APIView):
 
 class RuleDetailView(APIView):
     # OutputSerializer = rule_serializer.RuleDetailOutputSerializer
-    OutputSerializer = rule_serializer.RuleDetailOutputSerializerV2
+    OutputSerializer = rule_serializer.RuleDetailOutputSerializer
     InputSerializer = rule_serializer.RuleInputSerializer
 
     def get(self, request, pk):

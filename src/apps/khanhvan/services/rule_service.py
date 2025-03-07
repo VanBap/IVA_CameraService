@@ -17,7 +17,8 @@ from common.exceptions import InvalidInputError
 from ..models.camera import Camera
 from ..models import Rule, RuleCamera, RuleVersion
 from ..models.camera_alert import CameraAlert
-
+from ..models.prompt import Prompt
+from ..models.vlm_model import VLMModel
 
 logger = logging.getLogger('app')
 
@@ -62,6 +63,28 @@ def create_rule(validated_data, user):
     # create rule
     # rule = drf.model_create(Rule, validated_data)
 
+    # check VLM model
+    # truyen vao id cua vlm model
+    if validated_data.get('vlm_model_id'):
+        check_vlm_model = validated_data.get("vlm_model_id")
+        vlm_model = VLMModel.objects.filter(id=check_vlm_model).first()
+        if not vlm_model:
+            raise InvalidInputError({'vlm_model': 'vlm_model id is not valid'})
+        else:
+            validated_data['vlm_model'] = vlm_model
+
+
+    # check prompt
+    # truyen vao id cua prompt
+    if validated_data.get('prompt_id'):
+        check_prompt = validated_data.get("prompt_id")
+        prompt = Prompt.objects.filter(id=check_prompt).first()
+        if not prompt:
+            raise InvalidInputError({'prompt': 'prompt id is not valid'})
+        else:
+            validated_data['prompt'] = prompt
+
+
     # === add them vao Rule ===
     rule = Rule(**validated_data)
     rule.save()
@@ -99,6 +122,8 @@ def create_rule(validated_data, user):
         updated_by = rule.updated_by,
     )
     rule_version.save()
+
+
 
     return rule
 
@@ -215,6 +240,25 @@ def update_rule(rule_id, validated_data, user):
     if validated_data.get('end_time'):
         rule.end_time = validated_data.get('end_time')
 
+    if validated_data.get('vlm_model_id'):
+        # check VLM model
+        # truyen vao id cua vlm model
+        check_vlm_model = validated_data.get("vlm_model_id")
+        vlm_model = VLMModel.objects.filter(id=check_vlm_model).first()
+        if not vlm_model:
+            raise InvalidInputError({'vlm_model': 'vlm_model id is not valid'})
+        else:
+            rule.vlm_model = vlm_model
+
+    if validated_data.get('prompt_id'):
+        # check prompt
+        # truyen vao id cua prompt
+        check_prompt = validated_data.get("prompt_id")
+        prompt = Prompt.objects.filter(id=check_prompt).first()
+        if not prompt:
+            raise InvalidInputError({'prompt': 'prompt id is not valid'})
+        else:
+            rule.prompt = prompt
 
     # === Update thieu field start, end time, by ... ===
 

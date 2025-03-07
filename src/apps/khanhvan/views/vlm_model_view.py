@@ -9,16 +9,17 @@ from common import drf
 from common.drf import PageNumberPagination
 from common.exceptions import ApplicationError
 
-from ..serializers import ai_model_serializer
-from ..services import ai_model_service as service
+from ..serializers import vlm_model_serializer
+from ..services import vlm_model_service as service
+# from ..urls import vlm_model_urls
 
 logger = logging.getLogger('app')
 
 
-class AIListView(APIView):
+class VLMListView(APIView):
 
-    OutputSerializer = ai_model_serializer.AImodelSerializer
-    InputSerializer = ai_model_serializer.AImodelSerializer
+    OutputSerializer = vlm_model_serializer.VLMmodelSerializer
+    InputSerializer = vlm_model_serializer.VLMmodelSerializer
 
     class FilterSerializer(serializers.Serializer):
         aimodel_name = serializers.CharField(required=False) # <= required = False
@@ -55,6 +56,25 @@ class AIListView(APIView):
             return Response(self.OutputSerializer(aimodel).data, status=status.HTTP_201_CREATED)
 
         except IntegrityError as ex:
-            logger.error('Failed to create new ai model', ex)
+            logger.error('Failed to create new ai model')
             raise ApplicationError({f'{str(ex)}': 'Database error'})
 
+
+class VLMDetailView(APIView):
+    OutputSerializer = vlm_model_serializer.VLMmodelSerializer
+    InputSerializer = vlm_model_serializer.VLMmodelSerializer
+
+    def get(self, request, pk):
+        vlmmodel = service.get_vlm_model(pk)
+
+        res = self.OutputSerializer(vlmmodel).data
+
+        return Response(res)
+
+    def delete(self, request, pk):
+        try:
+            service.remove_vlm_model(pk)
+            return Response({'message': 'Successfully deleted ai model'})
+        except IntegrityError as ex:
+            logger.exception(ex)
+            raise ApplicationError({f'{str(ex)}': 'Failed to delete ai model'})

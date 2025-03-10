@@ -73,7 +73,10 @@ class VLMDetailView(APIView):
 
     def delete(self, request, pk):
         try:
-            service.remove_vlm_model(pk)
+            check = service.remove_vlm_model(pk)
+            if check != True:
+                return Response({'message': f'Please remove rule id: {check} in advanced'})
+
             return Response({'message': 'Successfully deleted ai model'})
         except IntegrityError as ex:
             logger.exception(ex)

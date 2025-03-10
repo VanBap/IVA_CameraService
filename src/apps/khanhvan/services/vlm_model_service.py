@@ -44,6 +44,15 @@ def get_vlm_model(vlm_model_id):
 
     return vlm_model_id
 
-def remove_vlm_model(ai_model_id):
-    aimodel = get_vlm_model(ai_model_id)
-    aimodel.delete()
+def remove_vlm_model(vlm_model_id):
+    vlmmodel = get_vlm_model(vlm_model_id)
+
+    # update yeu cau thong bao user xoa rule
+    check_rules = vlmmodel.rules.first().id
+    if check_rules:
+        return check_rules
+    else:
+        vlmmodel.delete()
+        return True
+
+

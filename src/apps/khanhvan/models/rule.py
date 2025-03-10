@@ -24,12 +24,13 @@ class Rule(BaseModel):
     current_version = models.IntegerField(default=1)
 
     # VLM model
-    vlm_model = models.ForeignKey("VLMModel", on_delete=models.DO_NOTHING, null = True, blank = True)
+    vlm_model = models.ForeignKey("VLMModel", on_delete=models.DO_NOTHING, null = True, blank = True, related_name="rules")
 
     # prompt
     # Prompt dung cho loai rule TYPE = 1
-    # Quan hệ 1-1 với Prompt
-    prompt = models.OneToOneField("Prompt", on_delete=models.CASCADE, null=True, blank=True)
+    prompt = models.ForeignKey("Prompt", on_delete=models.DO_NOTHING, null=True, blank=True, related_name="rules")
+
+
 
     class Meta:
         managed = True

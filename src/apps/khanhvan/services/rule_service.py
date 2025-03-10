@@ -60,27 +60,25 @@ def create_rule(validated_data, user):
     for config in camera_configs:
         list_camera_ids.append(config)
 
-    # create rule
-    # rule = drf.model_create(Rule, validated_data)
 
     # check VLM model
     # truyen vao id cua vlm model
-    if validated_data.get('vlm_model_id'):
-        check_vlm_model = validated_data.get("vlm_model_id")
-        vlm_model = VLMModel.objects.filter(id=check_vlm_model).first()
+    check_vlm_model = validated_data.get("vlm_model_id")
+    if check_vlm_model:
+        vlm_model = VLMModel.objects.get(id=check_vlm_model)
         if not vlm_model:
-            raise InvalidInputError({'vlm_model': 'vlm_model id is not valid'})
+            raise module_exceptions.VlmModelNotFound('VLM model not found')
         else:
             validated_data['vlm_model'] = vlm_model
 
 
     # check prompt
     # truyen vao id cua prompt
-    if validated_data.get('prompt_id'):
-        check_prompt = validated_data.get("prompt_id")
-        prompt = Prompt.objects.filter(id=check_prompt).first()
+    check_prompt = validated_data.get("prompt_id")
+    if check_prompt:
+        prompt = Prompt.objects.get(id=check_prompt)
         if not prompt:
-            raise InvalidInputError({'prompt': 'prompt id is not valid'})
+            raise module_exceptions.PromptNotFound('Prompt not found')
         else:
             validated_data['prompt'] = prompt
 
@@ -92,9 +90,10 @@ def create_rule(validated_data, user):
     # ================= add them RuleCamera =================
     list_rule_cameras = []
 
-    # Check - Kiem tra xem id co loi khong ?
-    refer_list_camera_id = list(Camera.objects.all().values_list('id', flat=True))
+    # ========= 10/03/2025 UPDATE GET TRUC TIEP ID => Check input nam trong result ko => len(in) != len(out) ==============
+    refer_list_camera_id = list(Camera.objects.filter(id__in = camera_configs).values_list('id', flat=True))
 
+    # Check - Kiem tra xem id co loi khong ?
     for camera_id in camera_configs:
         if camera_id not in refer_list_camera_id:
             raise module_exceptions.CameraNotFound(f'Camera {camera_id} not found')
@@ -111,7 +110,8 @@ def create_rule(validated_data, user):
     RuleCamera.objects.bulk_create(list_rule_cameras)
 
     # ================= add them RuleVersion =================
-    rule_version = RuleVersion.objects.create(
+    # create: tao + save
+    RuleVersion.objects.create(
         rule = rule,
         version_number = rule.current_version,
         name = rule.name,
@@ -121,10 +121,7 @@ def create_rule(validated_data, user):
         created_by = rule.created_by,
         updated_by = rule.updated_by,
     )
-    rule_version.save()
-
-
-
+    # rule_version.save()
     return rule
 
 def get_rule(rule_id):
@@ -228,42 +225,39 @@ def update_rule(rule_id, validated_data, user):
     rule.updated_at = timezone.now()
     rule.updated_by = actor
 
-    if validated_data.get('name'):
-        rule.name = validated_data.get('name')
+    fields = ['updated_by', 'updated_at']
 
-    if validated_data.get('type'):
-        rule.type = validated_data.get('type')
-    
-    if validated_data.get('start_time'):
-        rule.start_time = validated_data.get('start_time')
+    # ========== 10/03/2025 ==========
+    for key, value in validated_data.items():
+        if getattr(rule, key) != value:
+            fields.append(key)
+            if key == 'prompt_id':
+                # check prompt
+                # truyen vao id cua prompt
+                check_prompt = validated_data.get("prompt_id")
+                prompt = Prompt.objects.get(id=check_prompt)
+                if not prompt:
+                    raise InvalidInputError({'prompt': 'prompt id is not valid'})
+                else:
+                    setattr(rule, key, value)
 
-    if validated_data.get('end_time'):
-        rule.end_time = validated_data.get('end_time')
+            if key == 'vlm_model_id':
+                # check VLM model
+                # truyen vao id cua vlm model
+                check_vlm_model = validated_data.get("vlm_model_id")
+                vlm_model = VLMModel.objects.get(id=check_vlm_model)
+                if not vlm_model:
+                    raise InvalidInputError({'vlm_model': 'vlm_model id is not valid'})
+                else:
+                    setattr(rule, key, value)
 
-    if validated_data.get('vlm_model_id'):
-        # check VLM model
-        # truyen vao id cua vlm model
-        check_vlm_model = validated_data.get("vlm_model_id")
-        vlm_model = VLMModel.objects.filter(id=check_vlm_model).first()
-        if not vlm_model:
-            raise InvalidInputError({'vlm_model': 'vlm_model id is not valid'})
-        else:
-            rule.vlm_model = vlm_model
-
-    if validated_data.get('prompt_id'):
-        # check prompt
-        # truyen vao id cua prompt
-        check_prompt = validated_data.get("prompt_id")
-        prompt = Prompt.objects.filter(id=check_prompt).first()
-        if not prompt:
-            raise InvalidInputError({'prompt': 'prompt id is not valid'})
-        else:
-            rule.prompt = prompt
-
-    # === Update thieu field start, end time, by ... ===
-
+            else:
+                setattr(rule, key, value)
+    # ===================================================
     rule.current_version += 1
-    rule.save()
+    fields.append('current_version')
+
+    rule.save(update_fields=fields)
 
     # 02/02/25
     # Dang lam do: update list Camera cho rule.
@@ -297,7 +291,7 @@ def update_rule(rule_id, validated_data, user):
             RuleCamera.objects.bulk_create(list_camera_configs)
 
     # === Create new Version to Rule ===
-    rule_version = RuleVersion.objects.create(
+    RuleVersion.objects.create(
         rule = rule,
         version_number = rule.current_version,
         name = rule.name,
@@ -306,9 +300,8 @@ def update_rule(rule_id, validated_data, user):
         end_time = rule.end_time,
         created_by = actor,
         updated_by = actor
-        # thieu created by, ...
     )
-    rule_version.save()
+
     return rule
 
 

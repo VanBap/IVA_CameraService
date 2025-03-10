@@ -30,7 +30,7 @@ class RuleCameraDetailOutputSerializer(serializers.ModelSerializer):
 class RuleVlmOutputSerializer(serializers.ModelSerializer):
     class Meta:
         model = VLMModel
-        fields = ['id', 'vlmmodel_name']
+        fields = ['id', 'code_name']
 
 class RulePromptOutputSerializer(serializers.ModelSerializer):
     class Meta:
@@ -90,3 +90,4 @@ class RuleDetailOutputSerializerV2(serializers.ModelSerializer):
         model = Rule
         fields = '__all__'
         # exclude = ['cameras']
+

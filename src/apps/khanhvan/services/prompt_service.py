@@ -45,4 +45,11 @@ def get_prompt(prompt_id):
 
 def remove_prompt(prompt_id):
     prompt=get_prompt(prompt_id)
-    prompt.delete()
+    check_rules = prompt.rules.first().id
+    if check_rules:
+        return check_rules
+    else:
+        prompt.delete()
+        return True
+
+

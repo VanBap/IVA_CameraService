@@ -52,3 +52,11 @@ class CameraAlertNotFound(NotFound):
 class RuleNotFound(NotFound):
     default_code = 'rule_not_found'
     default_detail = 'Rule not found'
+
+class VlmModelNotFound(NotFound):
+    default_code = 'vlm_model_not_found'
+    default_detail = 'Vlm model not found'
+
+class PromptNotFound(NotFound):
+    default_code = 'prompt_not_found'
+    default_detail = 'Prompt not found'

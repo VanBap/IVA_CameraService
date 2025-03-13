@@ -39,17 +39,17 @@ def get_prompt(prompt_id):
         prompt = Prompt.objects.get(pk=prompt_id)
 
     except ObjectDoesNotExist:
-        raise module_exceptions.NotFound()
+        raise module_exceptions.PromptNotFound()
 
     return prompt
 
 def remove_prompt(prompt_id):
-    prompt=get_prompt(prompt_id)
-    check_rules = prompt.rules.first().id
-    if check_rules:
-        return check_rules
+    prompt = get_prompt(prompt_id)
+
+    # update yeu cau thong bao user xoa rule
+    check_prompt = prompt.rules.first()
+    if check_prompt:
+        raise module_exceptions.CannotRemoveModel(f'Rule id {check_prompt.id}, {check_prompt.name} is using this model')
     else:
         prompt.delete()
-        return True
-
 

@@ -40,7 +40,7 @@ def get_vlm_model(vlm_model_id):
         vlm_model_id = VLMModel.objects.get(pk=vlm_model_id)
 
     except ObjectDoesNotExist:
-        raise module_exceptions.NotFound()
+        raise module_exceptions.VlmModelNotFound()
 
     return vlm_model_id
 
@@ -48,11 +48,8 @@ def remove_vlm_model(vlm_model_id):
     vlmmodel = get_vlm_model(vlm_model_id)
 
     # update yeu cau thong bao user xoa rule
-    check_rules = vlmmodel.rules.first().id
-    if check_rules:
-        return check_rules
+    check_rule = vlmmodel.rules.first()
+    if check_rule:
+        raise module_exceptions.CannotRemoveModel(f'Rule id {check_rule.id}, {check_rule.name} is using this model')
     else:
         vlmmodel.delete()
-        return True
-
-

@@ -71,10 +71,7 @@ class PromptDetailView(APIView):
 
     def delete(self, request, pk):
         try:
-            check = service.remove_prompt(pk)
-            if check != True:
-                return Response({'message': f'Please remove rule id: {check} in advanced'})
-
+            service.remove_prompt(pk)
             return Response({'message': 'Successfully deleted prompt'})
         except IntegrityError as ex:
             logger.exception(ex)

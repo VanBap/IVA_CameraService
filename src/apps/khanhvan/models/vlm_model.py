@@ -7,7 +7,7 @@ class VLMModel(BaseModel):
 
     name = models.CharField(max_length=255, default='', blank=True)
     code_name = models.CharField(max_length=255, default='')
-    api_key = models.TextField()
+    api_key = models.TextField(default='', blank=True)
     url = models.CharField(max_length=255, default='', blank=True)
 
     class Meta:

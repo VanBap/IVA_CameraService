@@ -60,3 +60,12 @@ class VlmModelNotFound(NotFound):
 class PromptNotFound(NotFound):
     default_code = 'prompt_not_found'
     default_detail = 'Prompt not found'
+
+
+class CannotRemoveModel(ValidationError):
+    default_code = 'cannot_remove_model'
+    default_detail = 'Cannot remove model'
+
+class CannotRemovePrompt(ValidationError):
+    default_code = 'cannot_remove_prompt'
+    default_detail = 'Cannot remove prompt'

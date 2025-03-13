@@ -237,7 +237,7 @@ def update_rule(rule_id, validated_data, user):
                 check_prompt = validated_data.get("prompt_id")
                 prompt = Prompt.objects.get(id=check_prompt)
                 if not prompt:
-                    raise InvalidInputError({'prompt': 'prompt id is not valid'})
+                    raise module_exceptions.PromptNotFound('Prompt not found')
                 else:
                     setattr(rule, key, value)
 
@@ -247,7 +247,7 @@ def update_rule(rule_id, validated_data, user):
                 check_vlm_model = validated_data.get("vlm_model_id")
                 vlm_model = VLMModel.objects.get(id=check_vlm_model)
                 if not vlm_model:
-                    raise InvalidInputError({'vlm_model': 'vlm_model id is not valid'})
+                    raise module_exceptions.VlmModelNotFound('Vlm not found')
                 else:
                     setattr(rule, key, value)
 

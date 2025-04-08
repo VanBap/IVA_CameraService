@@ -101,6 +101,10 @@ INSTALLED_APPS = [
 
     #khanhvan
     'apps.khanhvan',
+
+    #chatbot
+    'apps.chatbot',
+
 ]
 # for specify column of django-safedelete model: SAFE_DELETE_FIELD_NAME = 'deleted_at'
 
@@ -348,16 +352,18 @@ DRF_STANDARDIZED_ERRORS = {
     "EXCEPTION_HANDLER_CLASS": "common.my_exception_handler.MyExceptionHandler"
 }
 
-CORS_ORIGIN_ALLOW_ALL = False
-CORS_ALLOW_CREDENTIALS = False
-CORS_EXPOSE_HEADERS = ['Content-Disposition']
-CORS_ALLOWED_ORIGINS = []
+# === 04/04/2025 ===
+CORS_ORIGIN_ALLOW_ALL = True
 
-list_hosts = iva.parse_cors_allowed_string()
-if list_hosts:
-    CORS_ORIGIN_ALLOW_ALL = False
-    CORS_ALLOW_CREDENTIALS = True
-    CORS_ALLOWED_ORIGINS = list_hosts
+# CORS_ALLOW_CREDENTIALS = True
+# CORS_EXPOSE_HEADERS = ['Content-Disposition']
+# CORS_ALLOWED_ORIGINS = []
+#
+# list_hosts = iva.parse_cors_allowed_string()
+# if list_hosts:
+#     CORS_ORIGIN_ALLOW_ALL = True
+#     CORS_ALLOW_CREDENTIALS = True
+#     CORS_ALLOWED_ORIGINS = list_hosts
 
 # AUTH_USER_MODEL = "user_management.User"
 
@@ -416,3 +422,4 @@ PROMETHEUS_EXPORT_MIGRATIONS = False
 SERVICE_NAME = os.getenv('SERVICE_NAME', 'web-service')
 TELEGRAF_HOST = os.getenv('TELEGRAF_HOST')
 TELEGRAF_PORT = int(os.getenv('TELEGRAF_PORT', 0))
+

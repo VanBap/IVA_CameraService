@@ -7,3 +7,4 @@ from .rule_version import RuleVersion
 
 from .vlm_model import VLMModel
 from .prompt import Prompt
+from .test_image import TestImage

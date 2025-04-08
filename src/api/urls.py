@@ -32,4 +32,7 @@ urlpatterns = [
 
     # khanhvan
     path('api/khanhvan/', include('apps.khanhvan.urls')),
+
+    # chatbot
+    path('api/khanhvan/', include('apps.chatbot.urls')),
 ]

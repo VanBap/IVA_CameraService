@@ -16,3 +16,10 @@ api_logs
 tmp
 
 .idea
+
+# Data
+src/apps/chatbot/data
+src/apps/chatbot/data/*
+src/apps/chatbot/data/hdsd_Sapo.pdf
+src/apps/chatbot/data/vector_store.pkl
+src/apps/chatbot/data/vector_store_demo.pkl

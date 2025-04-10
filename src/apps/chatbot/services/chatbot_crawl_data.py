@@ -10,7 +10,7 @@ from langchain_openai import OpenAIEmbeddings
 # URL của trang hỗ trợ Sapo Retail
 base_url = "https://support.sapo.vn/sapo-retail"
 
-def get_article_links(url):
+def get_article_links(base_url):
     # Gửi request và parse HTML
     response = requests.get(base_url)
     soup = BeautifulSoup(response.text, "html.parser")
@@ -19,9 +19,14 @@ def get_article_links(url):
     article_links = []
     for link in soup.find_all("a", href=True, title=True):  # Chỉ lấy các thẻ <a> có href và title
         href = link["href"]
-        if "sapo" in href:  # Lọc ra các bài viết liên quan đến Sapo Retail
-            full_url = f"https://support.sapo.vn{href}" if href.startswith("/") else href
-            article_links.append(full_url)
+        if href=="/":
+            continue
+
+        full_url = f"https://support.sapo.vn{href}" if href.startswith("/") else href
+        article_links.append(full_url)
+
+    article_links.append("https://support.sapo.vn/ket-noi-kenh-facebook-tren-app-sapo")
+    article_links.append("https://support.sapo.vn/ket-noi-sapo-shopee")
 
     # Kiểm tra danh sách URL bài viết thu thập được
     print("Danh sách bài viết:")
@@ -30,13 +35,6 @@ def get_article_links(url):
 
     return article_links
 
-# === Load nội dung từ các trang con ===
-def load_articles(urls):
-    loaders = [WebBaseLoader(web_paths=(url,)) for url in urls]
-    docs = []
-    for loader in loaders:
-        docs.extend(loader.load())
-    return docs
 
 # === WebWithImageLoader ===
 class WebWithImageLoader(WebBaseLoader):
@@ -47,7 +45,7 @@ class WebWithImageLoader(WebBaseLoader):
         soup = BeautifulSoup(response.text, "html.parser", **(bs_kwargs or {}))
 
         # Lấy nội dung chỉ trong class="page-detail page-detail-guide"
-        content_div = soup.find("div", class_="content-layout")
+        content_div = soup.find("div", class_="col-xl-9 col-lg-8 col-12 detail-content")
         if not content_div:
             return soup, ""  # Trả về rỗng nếu không tìm thấy
 
@@ -62,7 +60,7 @@ class WebWithImageLoader(WebBaseLoader):
                     img_url = base_url + img_url
 
                 # Tạo text mới với định dạng <image_link> URL"
-                img_text = soup.new_string(f'\n<image_link> "{img_url}"\n')
+                img_text = soup.new_string(f'\n image_link: "{img_url}"\n')
                 print(f"img_text tuong ung la: {img_text}")
                 img.replace_with(img_text)
 
@@ -75,4 +73,16 @@ class WebWithImageLoader(WebBaseLoader):
         for path in self.web_paths:
             soup, text = self._scrape(path, bs_kwargs=self.bs_kwargs)
             yield Document(page_content=text, metadata={"source": path})
+
+# === Load nội dung từ các trang con ===
+def load_articles(urls):
+    loaders = [WebWithImageLoader(web_paths=(url,)) for url in urls]
+    docs = []
+    for loader in loaders:
+        docs.extend(loader.load())
+    return docs
+
+
+# get_article_links(base_url)
+
 

@@ -5,7 +5,7 @@ import re
 
 class SapoSupportChunker:
 
-    def __init__(self, chunk_size=1000, chunk_overlap=200):
+    def __init__(self, chunk_size=2000, chunk_overlap=200):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         # Pattern cho các header và section
@@ -20,7 +20,7 @@ class SapoSupportChunker:
     def extract_images_from_text(self, text):
         image_links = []
         for line in text.split("\n"):
-            if "<image_link>" in line:
+            if "image_link" in line:
                 image_links.append(line.strip())
         return image_links
 
@@ -77,7 +77,7 @@ class SapoSupportChunker:
                     print(f"=== CURRENT HEADER: {current_header}")
 
                 # Thu thập link hình ảnh cho header hiện tại
-                if current_header and "<image_link>" in line:
+                if current_header and "image_link" in line:
                     if current_header not in header_to_images:
                         header_to_images[current_header] = []
                     header_to_images[current_header].append(line.strip())
@@ -95,7 +95,7 @@ class SapoSupportChunker:
                     break
 
             # Kiểm tra xem chunk đã có link hình ảnh chưa
-            has_images = any("<image_link>" in line for line in chunk_lines)
+            has_images = any("image_link" in line for line in chunk_lines)
 
             # Nếu chunk có header nhưng không có hình ảnh, thêm vào
             if chunk_header and not has_images and chunk_header in header_to_images:
@@ -133,7 +133,7 @@ class SapoSupportChunker:
                 # Đảm bảo link hình ảnh được giữ nguyên trong các chunk con
                 for i, chunk in enumerate(sub_chunks):
                     # Nếu đây là chunk cuối và chưa có hình ảnh, thêm vào
-                    if i == len(sub_chunks) - 1 and not any("<image_link>" in line for line in chunk.split("\n")):
+                    if i == len(sub_chunks) - 1 and not any("image_link" in line for line in chunk.split("\n")):
                         for img in images:
                             if img not in chunk:
                                 chunk += f"\n{img}"
@@ -156,10 +156,10 @@ class SapoSupportChunker:
             # Tạo metadata mới cho mỗi chunk
             chunk_metadata = metadata.copy() if metadata else {}
             chunk_metadata["chunk"] = i
-            chunk_metadata["has_images"] = "<image_link>" in chunk
+            chunk_metadata["has_images"] = "image_link" in chunk
 
             # Đếm số lượng hình ảnh trong chunk
-            image_count = chunk.count("<image_link>")
+            image_count = chunk.count("image_link")
             chunk_metadata["image_count"] = image_count
 
             documents.append(Document(page_content=chunk, metadata=chunk_metadata))

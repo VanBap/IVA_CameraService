@@ -9,7 +9,7 @@ from common import drf
 from common.drf import PageNumberPagination
 from common.exceptions import ApplicationError
 
-from ..services import chatbot_service
+from ..services import chatbot_FINAL, chatbot_TEST
 
 logger = logging.getLogger('app')
 
@@ -25,7 +25,7 @@ class ChatbotView(APIView):
     def post(self, request):
 
         try:
-            response = chatbot_service.chatbot_run(request.data)
+            response = chatbot_TEST.chatbot_run(request.data)
             return Response(response, status=status.HTTP_201_CREATED)
 
         except IntegrityError as ex:

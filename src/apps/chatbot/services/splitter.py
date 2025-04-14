@@ -1,8 +1,10 @@
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import re
+from typing import List, Optional, Dict, Any
+import tiktoken
 
-
+# ============================== Option 1: Chunk according to the Header ==================================
 class SapoSupportChunker:
 
     def __init__(self, chunk_size=2000, chunk_overlap=200):
@@ -175,3 +177,72 @@ class SapoSupportChunker:
             all_docs.extend(chunks)
 
         return all_docs
+
+# ================================= Option 2: Chunk entire website into 1 chunk ===================================
+class UrlBasedChunker:
+    def __init__(self, chunk_size=6000, chunk_overlap=200):
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separators=["\n\n", "\n", ". ", " ", ""],
+            keep_separator=True
+        )
+        # Tokenizer de dem Tokens
+        self.tokenizer = tiktoken.get_encoding("cl100k_base")
+
+    def count_tokens(self, text):
+        """ Dem so luong tokens trong 1 doan text"""
+        return len(self.tokenizer.encode(text))
+
+    def create_documents(self, docs: List[Document]) -> List[Document]:
+        processed_docs = []
+        for doc in docs:
+            content = doc.page_content
+            source_url = doc.metadata.get("source", "unknown")
+            tokens_count = self.count_tokens(content)
+
+            # Kiem tra xem noi dung co vuot qua gioi han khong?
+            if tokens_count <= self.chunk_size:
+                metadata = doc.metadata.copy()
+                metadata["has_images"] = "image_link" in content
+                metadata["image_count"] = content.count("image_link")
+                metadata["is_split"] = False
+                metadata["original_url"] = source_url
+                metadata["tokens_count"] = tokens_count
+
+                processed_docs.append(Document(
+                    page_content=content,
+                    metadata=metadata
+                ))
+                print(f"URL {source_url} - {tokens_count} tokens - giữ nguyên")
+            else:
+                chunks = self.text_splitter.split_text(content)
+
+                for i, chunk in enumerate(chunks):
+                    chunk_tokens = self.count_tokens(chunk)
+
+                    metadata = doc.metadata.copy()
+                    metadata["chunk_id"] = i
+                    metadata["total_chunks"] = len(chunks)
+                    metadata["has_images"] = "image_link" in chunk
+                    metadata["image_count"] = chunk.count("image_link")
+                    metadata["is_split"] = True
+                    metadata["original_url"] = source_url
+                    metadata["tokens_count"] = chunk_tokens
+
+                    processed_docs.append(Document(
+                        page_content=chunk,
+                        metadata=metadata
+                    ))
+
+                print(f"URL {source_url} - {tokens_count} tokens - được chia thành {len(chunks)} chunks")
+
+        return processed_docs
+
+
+
+
+
+

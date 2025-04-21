@@ -9,7 +9,6 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import PromptTemplate
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import pickle
-from langchain_community.vectorstores import FAISS
 
 # === Vannhk ===
 from . import chatbot_crawl_data as crawl_data
@@ -56,10 +55,10 @@ if not collection_exists:
     documents = crawl_data.load_articles(get_article_links)
     print(f"[INFO] Đã tải {len(documents)} tài liệu từ URL")
 
-    # ============================== Option 1: Chunk according to the Header ==================================
+    # ============================== Option 1: Chunk by Header ==================================
     # chunker = SapoSupportChunker(chunk_size=2000, chunk_overlap=200)
     # all_splits = chunker.split_documents(documents)
-    # ============================== Option 2: Chunk entire website into 1 chunk ==============================
+    # ============================== Option 2: Chunk by entire website ==============================
     chunker = UrlBasedChunker()
     all_splits = chunker.create_documents(documents)
 
@@ -125,7 +124,6 @@ else:
 
 
 # === Choose LLM model ===
-# Model 1: gpt-4o
 llm = ChatOpenAI(model_name="gpt-4o-mini",
                  api_key=OPEN_API_KEY,
                  base_url="https://models.inference.ai.azure.com",

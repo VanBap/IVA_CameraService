@@ -1,7 +1,7 @@
 # import os
 #
 # from langchain_core.documents import Document
-# from langchain_text_splitters import RecursiveCharacterTextSplitter
+# from langchain_milvus import Milvus, BM25BuiltInFunction
 # from langgraph.graph import START, StateGraph
 # from typing_extensions import List, TypedDict
 #
@@ -13,41 +13,55 @@
 #
 # # === Vannhk ===
 # from . import chatbot_crawl_data as crawl_data
-#
-# from . splitter import SapoSupportChunker
-#
+# from . splitter import SapoSupportChunker, UrlBasedChunker
 # import time
 #
-# # import chatbot_crawl_data as crawl_data
-# #
-# # from splitter import SapoSupportChunker
+# from langchain_openai import ChatOpenAI
+# from pymilvus import (
+#     Collection,
+#     CollectionSchema,
+#     DataType,
+#     FieldSchema,
+#     WeightedRanker,
+#     connections,
+# )
 #
-# VECTOR_DB_DEMO_PATH = os.getenv("VECTOR_DB_DEMO_PATH")
+# VECTOR_DB_DEMO_PATH = os.getenv("VECTOR_DB_PATH_MILVUS_SIMPLE_SEARCH")
 # OPEN_API_KEY = os.getenv("OPEN_API_KEY")
 #
-# # === CHECK IF VECTOR DB EXISTED ===
-# if os.path.exists(VECTOR_DB_DEMO_PATH):
-#     print("[INFO] ================ chatbot_FINAL =======================")
-#     print("[INFO] Đang tải dữ liệu từ Vector DB đã lưu...")
-#     with open(VECTOR_DB_DEMO_PATH, "rb") as f:
-#         vector_store = pickle.load(f)
-# else:
-#     print("[INFO] ================ chatbot_FINAL =======================")
-#     print("[INFO] Lần đầu tiên chạy - Đang tải và embedding dữ liệu...")
+# embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+# collection_name = "sapo_documents"
 #
-#     # url = "https://support.sapo.vn/tim-hieu-ve-don-hang-1"
-#     # url = "https://support.sapo.vn/ket-noi-kenh-facebook-tren-app-sapo"
-#     # loader = crawl_data.WebWithImageLoader(web_paths=(url,))
-#     # documents = loader.load()
+# # === CHECK IF VECTOR DB EXISTED ===
+# # Kiểm tra xem collection đã tồn tại trong Milvus chưa
+# from pymilvus import utility, connections
+#
+# # Kết nối đến Milvus
+# connections.connect(
+#     alias="default",
+#     uri=VECTOR_DB_DEMO_PATH
+# )
+#
+# collection_exists = utility.has_collection(collection_name)
+#
+#
+# if not collection_exists:
+#     print("[INFO] ================ chatbot_TEST =======================")
+#     print("[INFO] Lần đầu tiên chạy - Đang tải và embedding dữ liệu...")
+#     start = time.time()
+#
 #
 #     base_url = "https://support.sapo.vn/sapo-retail"
 #     get_article_links = crawl_data.get_article_links(base_url)
 #     documents = crawl_data.load_articles(get_article_links)
-#
 #     print(f"[INFO] Đã tải {len(documents)} tài liệu từ URL")
 #
-#     chunker = SapoSupportChunker(chunk_size=2000, chunk_overlap=200)
-#     all_splits = chunker.split_documents(documents)
+#     # ============================== Option 1: Chunk according to the Header ==================================
+#     # chunker = SapoSupportChunker(chunk_size=2000, chunk_overlap=200)
+#     # all_splits = chunker.split_documents(documents)
+#     # ============================== Option 2: Chunk entire website into 1 chunk ==============================
+#     chunker = UrlBasedChunker()
+#     all_splits = chunker.create_documents(documents)
 #
 #     print(f"[INFO] Đã tách thành {len(all_splits)} đoạn")
 #
@@ -65,19 +79,48 @@
 #             print(f"Số lượng hình ảnh: {len(image_links)}")
 #
 #
-#     # === DATA EMBEDDING + VECTOR DB ===
-#     # embeddings = OpenAIEmbeddings(model="text-embedding-3-large", openai_api_key=OPEN_API_KEY,base_url="https://models.inference.ai.azure.com")
-#     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-#     # ******embedidng_anh =
 #
-#     vector_store = FAISS.from_documents(all_splits, embeddings)  # Sử dụng FAISS để lưu trữ vector
-#     # ****** vector_store cho ảnh =
+#     # ============ TEST MILVUS as VECTOR STORE ==============
 #
-#     # === Lưu Vector DB để sử dụng sau ===
-#     with open(VECTOR_DB_DEMO_PATH, "wb") as f:
-#         pickle.dump(vector_store, f)
+#     # Khi tạo mới vector store
+#     # Phiên bản đơn giản hơn không sử dụng hybrid search
+#     vector_store = Milvus.from_documents(
+#         documents=all_splits,
+#         embedding=embeddings,
+#         connection_args={"uri": VECTOR_DB_DEMO_PATH},
+#         collection_name=collection_name,
+#         text_field="page_content",
+#         vector_field="embedding",
+#         consistency_level="Strong",
+#     )
 #
+#     end = time.time()
+#     print(f"[CRAWL + SPLIT + EMBEDDING DATA] {end-start} seconds")
 #     print("[INFO] Lưu trữ Vector DB thành công!")
+#
+# else:
+#     print("[INFO] ================ chatbot_TEST =======================")
+#     print("[INFO] Đang load vector store đã tồn tại...")
+#
+#     # Khi load vector store đã tồn tại
+#     vector_store = Milvus(
+#         collection_name=collection_name,
+#         embedding_function=embeddings,
+#         connection_args={"uri": VECTOR_DB_DEMO_PATH},
+#         text_field="page_content",
+#         vector_field="embedding",
+#         enable_dynamic_field=True,
+#
+#     )
+#
+# # except Exception as e:
+# #     if "invalid index type: AUTOINDEX" in str(e):
+# #         print("[INFO] Lỗi AUTOINDEX, đang thử lại với SPARSE_INVERTED_INDEX...")
+# #         # Thực hiện lại với index type cụ thể
+# #         # ...
+# #     else:
+# #         print(f"[ERROR] Lỗi khi khởi tạo Milvus: {str(e)}")
+# #         raise
 #
 #
 #
@@ -88,11 +131,7 @@
 #                  base_url="https://models.inference.ai.azure.com",
 #                  temperature=0.0)
 #
-# # # Model 2: OpenVlab/1B
-# # llm = ChatOpenAI(model_name="OpenGVLab/InternVL2_5-1B",
-# #                  api_key="EMPTY",
-# #                  base_url="http://10.124.64.125:9903/v1/",
-# #                  temperature=0.0)
+#
 #
 # print(f"[MODEL NAME]: {llm.model_name}")
 #
@@ -107,21 +146,13 @@
 # def retrieve(state: State):
 #     start = time.time()
 #
-#     retrieved_docs = vector_store.similarity_search(state["question"], k=7) #default k=4
-#
-#     # # Phân tích các đoạn văn bản này
-#     # has_images = any("<image_link>" in doc.page_content for doc in retrieved_docs)
-#     #
-#     # # Thông báo debug nếu có hình ảnh
-#     # if has_images:
-#     #     print("[DEBUG] Kết quả retrieved có chứa image links")
+#     retrieved_docs = vector_store.similarity_search(state["question"], k=2) #default k=4
 #
 #     end = time.time()
 #     print(f"[retrieve] TIME: {end - start}")
 #     return {"context": retrieved_docs}
 #
 # from . vannhk_template import template1, template2
-#
 # prompt = PromptTemplate.from_template(template1)
 #
 # def generate(state: State):
@@ -135,12 +166,11 @@
 #         "context":docs_content
 #         }
 #     )
-#     print(f"[MESSEAGES]: {messages}")
+#     # print(f"[MESSEAGES]: {messages}")
 #
 #     response = llm.invoke(messages)
 #
 #     end = time.time()
-#
 #     print(f"[generate] TIME: {end - start}")
 #     return {"answer": response.content}
 #
@@ -156,12 +186,11 @@
 #     response = dict(response)
 #     end = time.time()
 #
-#     print(f"CONTEXT: {response['context']}")
-#     print(f"ANSWER {response['answer']}")
-#     # print(response)
-#
+#     # print(f"CONTEXT: {response['context']}")
+#     # print(f"ANSWER {response['answer']}")
+#     # # print(response)
+#     #
 #     print(f"[chatbot_run] TIME: {end - start}")
-#
 #     return response
 #
 #

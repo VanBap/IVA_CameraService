@@ -2,7 +2,6 @@
 #
 # from langchain_core.documents import Document
 # from langchain_milvus import Milvus, BM25BuiltInFunction
-# from langchain_text_splitters import RecursiveCharacterTextSplitter
 # from langgraph.graph import START, StateGraph
 # from typing_extensions import List, TypedDict
 #
@@ -10,42 +9,31 @@
 # from langchain_core.prompts import PromptTemplate
 # from langchain_community.embeddings import HuggingFaceEmbeddings
 # import pickle
-# from langchain_community.vectorstores import FAISS
 #
 # # === Vannhk ===
 # from . import chatbot_crawl_data as crawl_data
-# from . splitter import SapoSupportChunker
+# from . splitter import SapoSupportChunker, UrlBasedChunker
 # import time
 #
-# from langchain_milvus.retrievers import MilvusCollectionHybridSearchRetriever
-# from langchain_milvus.utils.sparse import BM25SparseEmbedding
 # from langchain_openai import ChatOpenAI
-# # from pymilvus import (
-# #     Collection,
-# #     CollectionSchema,
-# #     DataType,
-# #     FieldSchema,
-# #     WeightedRanker,
-# #     connections,
-# # )
+# from pymilvus import (
+#     Collection,
+#     CollectionSchema,
+#     DataType,
+#     FieldSchema,
+#     WeightedRanker,
+#     connections,
+# )
 #
-# VECTOR_DB_DEMO_PATH = os.getenv("VECTOR_DB_PATH_MILVUS_HYBRID_SEARCH")
+# VECTOR_DB_DEMO_PATH = os.getenv("VECTOR_DB_PATH_MILVUS_SIMPLE_SEARCH")
 # OPEN_API_KEY = os.getenv("OPEN_API_KEY")
-# embeddings = []
-# dense_embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
-# collection_name = "sapo_documents_hybrid_search"
+#
+# embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+# collection_name = "sapo_documents"
 #
 # # === CHECK IF VECTOR DB EXISTED ===
-#
 # # Kiểm tra xem collection đã tồn tại trong Milvus chưa
 # from pymilvus import utility, connections
-#
-# # Kiểm tra và đóng kết nối cũ nếu tồn tại
-# try:
-#     if connections.has_connection("default"):
-#         connections.disconnect("default")
-# except Exception as e:
-#     print(f"[INFO] Lỗi khi ngắt kết nối: {str(e)}")
 #
 # # Kết nối đến Milvus
 # connections.connect(
@@ -61,21 +49,18 @@
 #     print("[INFO] Lần đầu tiên chạy - Đang tải và embedding dữ liệu...")
 #     start = time.time()
 #
-#     # url = "https://support.sapo.vn/ket-noi-kenh-facebook-tren-app-sapo"
-#     # loader = crawl_data.WebWithImageLoader(web_paths=(url,))
-#     # documents = loader.load()
 #
 #     base_url = "https://support.sapo.vn/sapo-retail"
 #     get_article_links = crawl_data.get_article_links(base_url)
 #     documents = crawl_data.load_articles(get_article_links)
-#
 #     print(f"[INFO] Đã tải {len(documents)} tài liệu từ URL")
 #
-#     chunker = SapoSupportChunker(chunk_size=2000, chunk_overlap=200)
-#     all_splits = chunker.split_documents(documents)
-#
-#     corpus = [doc.page_content for doc in all_splits]
-#     sparse_embedding = BM25SparseEmbedding(corpus = corpus)
+#     # ============================== Option 1: Chunk by Header ==================================
+#     # chunker = SapoSupportChunker(chunk_size=2000, chunk_overlap=200)
+#     # all_splits = chunker.split_documents(documents)
+#     # ============================== Option 2: Chunk by entire website ==============================
+#     chunker = UrlBasedChunker()
+#     all_splits = chunker.create_documents(documents)
 #
 #     print(f"[INFO] Đã tách thành {len(all_splits)} đoạn")
 #
@@ -100,15 +85,14 @@
 #     # Phiên bản đơn giản hơn không sử dụng hybrid search
 #     vector_store = Milvus.from_documents(
 #         documents=all_splits,
-#         embedding=[dense_embeddings, sparse_embedding],
+#         embedding=embeddings,
 #         connection_args={"uri": VECTOR_DB_DEMO_PATH},
 #         collection_name=collection_name,
+#         text_field="page_content",
 #         vector_field="embedding",
-#
 #         consistency_level="Strong",
-#         drop_old=True
 #     )
-#     embeddings.extend([dense_embeddings, sparse_embedding])
+#
 #     end = time.time()
 #     print(f"[CRAWL + SPLIT + EMBEDDING DATA] {end-start} seconds")
 #     print("[INFO] Lưu trữ Vector DB thành công!")
@@ -125,7 +109,6 @@
 #         text_field="page_content",
 #         vector_field="embedding",
 #         enable_dynamic_field=True,
-#         drop_old=True,
 #
 #     )
 #
@@ -141,7 +124,6 @@
 #
 #
 # # === Choose LLM model ===
-# # Model 1: gpt-4o
 # llm = ChatOpenAI(model_name="gpt-4o-mini",
 #                  api_key=OPEN_API_KEY,
 #                  base_url="https://models.inference.ai.azure.com",
@@ -162,7 +144,7 @@
 # def retrieve(state: State):
 #     start = time.time()
 #
-#     retrieved_docs = vector_store.similarity_search(state["question"], k=1, ranker_type="weighted", ranker_params={"weights": [0.6, 0.4]}) #default k=4
+#     retrieved_docs = vector_store.similarity_search(state["question"], k=2) #default k=4
 #
 #     end = time.time()
 #     print(f"[retrieve] TIME: {end - start}")
@@ -202,9 +184,9 @@
 #     response = dict(response)
 #     end = time.time()
 #
-#     print(f"CONTEXT: {response['context']}")
-#     print(f"ANSWER {response['answer']}")
-#     # # print(response)
+#     # print(f"CONTEXT: {response['context']}")
+#     # print(f"ANSWER {response['answer']}")
+#     # print(response)
 #     #
 #     print(f"[chatbot_run] TIME: {end - start}")
 #     return response

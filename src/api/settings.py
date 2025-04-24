@@ -35,8 +35,14 @@ ALLOWED_HOSTS = [
     '0.0.0.0',
     '127.0.0.1',
     'localhost',
+    '10.124.66.153',
+    '10.124.66.173',
     '*'
 ]
+
+# ALLOWED_HOSTS = [
+#     '*'
+# ]
 
 # MINIO
 MINIO = iva.get_minio_config_from_env()
